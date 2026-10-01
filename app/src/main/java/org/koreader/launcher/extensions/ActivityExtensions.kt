@@ -3,9 +3,11 @@ package org.koreader.launcher.extensions
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.SearchManager
+import android.app.UiModeManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.Point
 import android.graphics.Rect
 import android.net.ConnectivityManager
@@ -21,13 +23,24 @@ import androidx.core.content.ContextCompat
 import java.util.*
 
 val Activity.platform: String
-    get() = if (packageManager.hasSystemFeature("org.chromium.arc.device_management")) {
-        "chrome"
-    } else if ((Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP)
-        && packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)) {
-        "android_tv"
-    } else {
-        "android"
+    get() {
+        if (packageManager.hasSystemFeature("org.chromium.arc.device_management")) {
+            return "chrome"
+        }
+        val uiModeManager = getSystemService(Context.UI_MODE_SERVICE) as? UiModeManager
+        val isUiModeTv = uiModeManager?.currentModeType == Configuration.UI_MODE_TYPE_TELEVISION
+        val hasLeanback = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) &&
+            packageManager.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
+        @Suppress("DEPRECATION")
+        val hasTvFeature = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB_MR2) &&
+            packageManager.hasSystemFeature(PackageManager.FEATURE_TELEVISION)
+        val hasNoTouch = !packageManager.hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN)
+
+        return if (hasLeanback || hasTvFeature || isUiModeTv || hasNoTouch) {
+            "android_tv"
+        } else {
+            "android"
+        }
     }
 /* Haptic feedback */
 fun Activity.hapticFeedback(constant: Int, force: Boolean, view: View) {
@@ -302,6 +315,11 @@ fun Activity.getOrientationCompat(isLandscape: Boolean): Int {
 }
 
 fun Activity.setOrientationCompat(isLandscape: Boolean, orientation: Int) {
+    if (platform == "android_tv") {
+        // Smart projectors and TVs have fixed physical display orientations.
+        // KOReader handles rotation via internal software blitbuffer rotation.
+        return
+    }
     val newOrientation = if (isLandscape) {
         when (orientation) {
             ANDROID_LANDSCAPE -> ANDROID_PORTRAIT
