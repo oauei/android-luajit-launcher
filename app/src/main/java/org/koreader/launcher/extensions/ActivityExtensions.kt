@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.SearchManager
 import android.app.UiModeManager
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -12,10 +13,12 @@ import android.graphics.Point
 import android.graphics.Rect
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
 import android.util.DisplayMetrics
+import android.util.Log
 import android.view.Surface
 import android.view.View
 import androidx.appcompat.app.AlertDialog
@@ -224,12 +227,29 @@ fun Activity.requestSpecialPermission(intent: Intent, rationale: String,
             .setMessage(rationale)
             .setCancelable(false)
             .setPositiveButton(ok) { _, _ ->
-                startActivity(intent)
-                finish()
+                try {
+                    startActivity(intent)
+                    finish()
+                } catch (e: ActivityNotFoundException) {
+                    Log.w("Launcher", "Activity not found for intent action: ${intent.action}, falling back to application details")
+                    try {
+                        val fallback = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = Uri.fromParts("package", packageName, null)
+                        }
+                        startActivity(fallback)
+                        finish()
+                    } catch (e2: Exception) {
+                        Log.e("Launcher", "Failed to launch application settings: $e2")
+                    }
+                } catch (e: Exception) {
+                    Log.e("Launcher", "Failed to launch permission activity: $e")
+                }
             }
 
         if (cancelButton != null) {
             builder.setNegativeButton(cancelButton) { _, _ -> }
+        } else {
+            builder.setNegativeButton(android.R.string.cancel) { _, _ -> }
         }
         builder.create().show()
     }

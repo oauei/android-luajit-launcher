@@ -23,7 +23,6 @@ class Device(activity: Activity) {
     }
 
     val needsView = when (activity.platform) {
-        "android_tv" -> true
         "chrome" -> true
         else -> epd.needsView()
     }
