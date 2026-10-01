@@ -1992,7 +1992,6 @@ local function run(android_app_state)
     android.prop.version = android.getVersion()
     android.prop.brokenLifecycle = android.hasBrokenLifecycle()
     android.prop.brokenTouchReport = android.hasBrokenTouchReport()
-    android.prop.isTv = android.isTv()
 
     -- update logger name
     android.log_name = android.prop.name
@@ -2229,13 +2228,20 @@ local function run(android_app_state)
     end
 
     android.isTv = function()
-        return JNI:context(android.app.activity.vm, function(jni)
+        if android.prop and android.prop.isTv ~= nil then
+            return android.prop.isTv
+        end
+        local res = JNI:context(android.app.activity.vm, function(jni)
             return jni:callBooleanMethod(
                 android.app.activity.clazz,
                 "isTv",
                 "()Z"
             )
         end)
+        if android.prop then
+            android.prop.isTv = res
+        end
+        return res
     end
 
     android.isChromeOS = function()
