@@ -1992,6 +1992,7 @@ local function run(android_app_state)
     android.prop.version = android.getVersion()
     android.prop.brokenLifecycle = android.hasBrokenLifecycle()
     android.prop.brokenTouchReport = android.hasBrokenTouchReport()
+    android.prop.isTv = android.isTv()
 
     -- update logger name
     android.log_name = android.prop.name
@@ -2750,7 +2751,14 @@ local function run(android_app_state)
         error(err)
     end
 
-    dofile(android.dir.."/llapp_main.lua")
+    local ok, err = xpcall(function()
+        dofile(android.dir.."/llapp_main.lua")
+    end, debug.traceback)
+    if not ok then
+        local err_str = tostring(err)
+        android.LOGE("Error in llapp_main:\n" .. err_str)
+        error(err_str)
+    end
 end
 
 run(...)

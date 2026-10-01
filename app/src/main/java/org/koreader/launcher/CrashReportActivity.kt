@@ -15,14 +15,30 @@ class CrashReportActivity : AppCompatActivity() {
         intent?.extras?.let { bundle ->
             binding = CrashReportBinding.inflate(layoutInflater)
             setContentView(binding.root)
-            binding.title.text = bundle.get("title").toString()
-            binding.reason.text = bundle.get("reason").toString()
-            if (binding.reason.text.equals("")) {
+            binding.title.text = bundle.get("title")?.toString() ?: "KOReader crashed"
+            val reason = bundle.get("reason")?.toString() ?: ""
+            binding.reason.text = reason
+            if (reason.isNotEmpty()) {
+                binding.reason.visibility = View.VISIBLE
+            } else {
                 binding.reason.visibility = View.GONE
             }
 
-            File(MainApp.crash_report_path).inputStream().bufferedReader().use {
-                binding.logs.text = it.readText()
+            var reportText = ""
+            try {
+                val reportFile = File(MainApp.crash_report_path)
+                if (reportFile.exists()) {
+                    reportText = reportFile.inputStream().bufferedReader().use { it.readText() }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            if (reportText.isNotEmpty()) {
+                binding.logs.text = reportText
+            } else if (reason.isNotEmpty()) {
+                binding.logs.text = reason
+            } else {
+                binding.logs.text = "No detailed crash logs could be captured."
             }
 
             binding.shareReport.setOnClickListener {

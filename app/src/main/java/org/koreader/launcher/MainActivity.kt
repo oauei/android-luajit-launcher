@@ -261,8 +261,8 @@ class MainActivity : NativeActivity(), LuaInterface,
 
     /* Called when the main thread is about to exit because of an error */
     @Suppress("unused")
-    fun onNativeCrash() {
-        MainApp.crashReport(applicationContext)
+    fun onNativeCrash(reason: String?) {
+        MainApp.crashReport(applicationContext, reason)
     }
 
     @Suppress("unused")

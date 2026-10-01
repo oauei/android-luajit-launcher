@@ -18,7 +18,7 @@ bool has_permission(struct android_app* app) {
     }
 }
 
-void crash_report(struct android_app* app) {
+void crash_report(struct android_app* app, const char* reason) {
     JNIEnv* env;
     JavaVM* vm = app->activity->vm;
     int status = (*vm)->GetEnv(vm, (void **)&env, JNI_VERSION_1_6);
@@ -26,8 +26,12 @@ void crash_report(struct android_app* app) {
         && ((*vm)->AttachCurrentThread(vm, &env, NULL) == 0)))
     {
         jclass clazz = (*env)->GetObjectClass(env, app->activity->clazz);
-        jmethodID method = (*env)->GetMethodID(env, clazz, "onNativeCrash", "()V");
-        (*env)->CallVoidMethod(env, app->activity->clazz, method);
+        jmethodID method = (*env)->GetMethodID(env, clazz, "onNativeCrash", "(Ljava/lang/String;)V");
+        jstring jreason = reason ? (*env)->NewStringUTF(env, reason) : NULL;
+        (*env)->CallVoidMethod(env, app->activity->clazz, method, jreason);
+        if (jreason) {
+            (*env)->DeleteLocalRef(env, jreason);
+        }
         (*vm)->DetachCurrentThread(vm);
     }
 }

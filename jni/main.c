@@ -72,6 +72,7 @@ void android_main(struct android_app* state) {
     const void *buf;
     off_t bufsize;
     int status;
+    const char* error_msg = NULL;
 
     LOGD("Starting");
 
@@ -104,14 +105,16 @@ void android_main(struct android_app* state) {
     LOGV("Launching LuaJIT assets");
     luaCode = AAssetManager_open(state->activity->assetManager, LOADER_ASSET, AASSET_MODE_BUFFER);
     if (luaCode == NULL) {
-        LOGE("Error loading loader asset");
+        error_msg = "Error loading loader asset (android.lua)";
+        LOGE("%s", error_msg);
         goto nativeError;
     }
 
     bufsize = AAsset_getLength(luaCode);
     buf = AAsset_getBuffer(luaCode);
     if (buf == NULL) {
-        LOGE("Error getting loader asset buffer");
+        error_msg = "Error getting loader asset buffer";
+        LOGE("%s", error_msg);
         goto nativeError;
     }
 
@@ -125,7 +128,8 @@ void android_main(struct android_app* state) {
     const size_t map_size = 144U * 1024U * 1024U;
     void* p = mmap(NULL, map_size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
     if (p == MAP_FAILED) {
-        LOGE("Error allocating mmap for mcode alloc workaround");
+        error_msg = "Error allocating mmap for mcode alloc workaround";
+        LOGE("%s", error_msg);
         goto nativeError;
     }
 
@@ -166,7 +170,8 @@ void android_main(struct android_app* state) {
     status = (*lj_luaL_loadbuffer)(L, (const char*) buf, (size_t) bufsize, LOADER_ASSET);
     AAsset_close(luaCode);
     if (status) {
-        LOGE("Error loading file: %s", (*lj_lua_tolstring)(L, -1, NULL));
+        error_msg = (*lj_lua_tolstring)(L, -1, NULL);
+        LOGE("Error loading file: %s", error_msg);
         goto nativeError;
     }
 
@@ -175,7 +180,8 @@ void android_main(struct android_app* state) {
 
     status = (*lj_lua_pcall)(L, 1, LUA_MULTRET, 0);
     if (status) {
-        LOGE("Failed to run script: %s", (*lj_lua_tolstring)(L, -1, NULL));
+        error_msg = (*lj_lua_tolstring)(L, -1, NULL);
+        LOGE("Failed to run script: %s", error_msg);
         goto nativeError;
     }
 
@@ -188,7 +194,8 @@ void android_main(struct android_app* state) {
     status = luaL_loadbuffer(L, (const char*) buf, (size_t) bufsize, LOADER_ASSET);
     AAsset_close(luaCode);
     if (status) {
-        LOGE("Error loading file: %s", lua_tostring(L, -1));
+        error_msg = lua_tostring(L, -1);
+        LOGE("Error loading file: %s", error_msg);
         goto nativeError;
     }
 
@@ -197,7 +204,8 @@ void android_main(struct android_app* state) {
 
     status = lua_pcall(L, 1, LUA_MULTRET, 0);
     if (status) {
-        LOGE("Failed to run script: %s", lua_tostring(L, -1));
+        error_msg = lua_tostring(L, -1);
+        LOGE("Failed to run script: %s", error_msg);
         goto nativeError;
     }
 
@@ -205,7 +213,7 @@ void android_main(struct android_app* state) {
 #endif
 
 nativeError:
-    crash_report(state);
+    crash_report(state, error_msg);
     ANativeActivity_finish(state->activity);
     exit(1);
 }

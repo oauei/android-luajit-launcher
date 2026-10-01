@@ -45,7 +45,19 @@ class MainApp : Application() {
 
         // crash report
         fun crashReport(context: Context, reason: String? = null) {
-            writeLogToFile(crash_report_path, true)
+            val report = StringBuilder()
+            report.append("=== KOReader Crash Report ===\n")
+            if (!reason.isNullOrBlank()) {
+                report.append("Crash Reason / Traceback:\n").append(reason).append("\n\n")
+            } else {
+                report.append("No specific crash reason provided.\n\n")
+            }
+            try {
+                File(crash_report_path).writeText(report.toString())
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            writeLogToFile(crash_report_path, false)
             val reportIntent = Intent(context, CrashReportActivity::class.java)
             reportIntent.putExtra("title", "$NAME crashed")
             reportIntent.putExtra("reason", reason ?: "")
@@ -72,15 +84,10 @@ class MainApp : Application() {
 
         private fun writeLogToFile(path: String, cleanAfterDump: Boolean = false) {
             File(path).let {
-                if (it.exists()) it.delete()
                 try {
-                    it.printWriter().use { log ->
-                        val buffer = getLogBuffer(cleanAfterDump)
-                        while (true) {
-                            buffer.readLine()?.let { line ->
-                                log.append("$line\n")
-                            } ?: break
-                        }
+                    val logs = getLogBuffer(cleanAfterDump).readText()
+                    if (logs.isNotBlank()) {
+                        it.appendText("\n=== System Logcat ===\n" + logs)
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
